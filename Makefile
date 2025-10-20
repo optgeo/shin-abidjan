@@ -43,11 +43,9 @@ convert: $(GEOTIFF_FILE)
 		--attribution $(ATTRIBUTION)
 	@echo "Conversion complete: $(PMTILES_FILE)"
 
-# Upload PMTiles (placeholder - needs configuration)
+# Upload PMTiles to server
 upload: $(PMTILES_FILE)
-	@echo "Upload target not yet configured."
-	@echo "Please configure your upload destination and credentials."
-	@echo "PMTiles file is available at: $(PMTILES_FILE)"
+	rsync --progress -av $(PMTILES_FILE) pod@pod.local:/home/pod/x-24b/data/shin-abidjan.pmtiles
 
 # Clean generated files
 clean:
@@ -63,6 +61,6 @@ help:
 	@echo "  dirs     - Create working directories"
 	@echo "  download - Download the GeoTIFF file"
 	@echo "  convert  - Convert GeoTIFF to PMTiles"
-	@echo "  upload   - Upload PMTiles (not yet configured)"
+	@echo "  upload   - Upload PMTiles to server"
 	@echo "  clean    - Remove generated files"
 	@echo "  help     - Show this help message"

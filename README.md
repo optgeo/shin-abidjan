@@ -36,10 +36,16 @@ make download
 make convert
 ```
 
-### Upload to storage (requires configuration)
+### Upload to server
 
+> **Prerequisite:** This step requires SSH access to `pod@pod.local` and a valid destination path. You may need to configure these to match your environment.
 ```bash
 make upload
+```
+
+This will execute (where `$(PMTILES_FILE)` resolves to `output/abidjan-2019.pmtiles`):
+```bash
+rsync --progress -av $(PMTILES_FILE) pod@pod.local:/home/pod/x-24b/data/shin-abidjan.pmtiles
 ```
 
 ### Run all steps
