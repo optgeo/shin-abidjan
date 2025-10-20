@@ -4,6 +4,14 @@ data/
 # Generated output files
 output/
 
+# Local temporary working directory used by the Makefile/scripts
+tmp/
+
+# Runtime artifacts
+*.pid
+*.log
+convert-*.log
+
 # Python
 __pycache__/
 *.py[cod]
@@ -13,6 +21,7 @@ __pycache__/
 env/
 venv/
 ENV/
+.venv/
 
 # OS files
 .DS_Store
@@ -20,4 +29,3 @@ Thumbs.db
 
 # Temporary files
 *.tmp
-*.log

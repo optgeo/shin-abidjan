@@ -87,6 +87,24 @@ shin-abidjan/
 └── README.md      # This file
 ```
 
+## What to commit / what to ignore
+
+When working with this repository, keep the git history clean by committing only source and script files. The following items are intentionally ignored (see `.gitignore`):
+
+- `data/` - large downloaded GeoTIFFs. These are resumable and can be recreated with `make download`.
+- `output/` - generated PMTiles files; these are build artifacts.
+- `tmp/` - temporary working directory used during conversion.
+- `*.log`, `*.pid` - runtime logs and PID files created by background runs.
+- Python virtual environment directories: `env/`, `venv/`, `.venv/`.
+
+Commit these files (examples):
+
+- `Makefile`, `scripts/*` - build scripts and helpers.
+- `README.md`, `LICENSE` - documentation and licensing.
+- Source configuration files such as `*.yml`, `*.yaml`, or `Dockerfile` if added.
+
+If you need to share a generated PMTiles file for distribution, do so outside of this repository (for example via rsync or hosting) rather than committing the large binary into git.
+
 ## License
 
 The converted data follows the original CC BY-NC 4.0 license from the source material.
