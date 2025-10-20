@@ -27,25 +27,49 @@ dirs:
 # Download the GeoTIFF file
 download: dirs
 	@echo "Downloading GeoTIFF file from OpenAerialMap..."
-	@if [ -f "$(GEOTIFF_FILE)" ]; then \
-		echo "GeoTIFF file already exists. Skipping download."; \
-	else \
-		curl -L -o $(GEOTIFF_FILE) $(GEOTIFF_URL); \
-		echo "Download complete."; \
-	fi
+	@./scripts/download.sh $(GEOTIFF_FILE) $(GEOTIFF_URL)
 
 # Convert GeoTIFF to PMTiles with metadata
-convert: $(GEOTIFF_FILE)
+# Ensure the download target runs first so the input file exists
+convert: download
 	@echo "Converting GeoTIFF to PMTiles..."
-	@rio pmtiles $(GEOTIFF_FILE) $(PMTILES_FILE) \
-		--name $(NAME) \
-		--description $(DESCRIPTION) \
-		--attribution $(ATTRIBUTION)
+	# Verify input has at least 3 bands (RGB). If 4 bands exist and you want alpha,
+	# use the --rgba flag for rio pmtiles.
+	@if ! command -v gdalinfo >/dev/null 2>&1; then \
+		echo "gdalinfo not found. Install GDAL (e.g. 'brew install gdal') to validate input bands."; \
+		# Fall back to running rio pmtiles without pre-check; default to WEBP and tile-size 512
+		FORMAT_FLAG="-f WEBP"; \
+		RGBA_FLAG=""; \
+		TILE_FLAG="--tile-size 512"; \
+		rio pmtiles $(GEOTIFF_FILE) $(PMTILES_FILE) $$FORMAT_FLAG $$RGBA_FLAG $$TILE_FLAG \
+			--name $(NAME) \
+			--description $(DESCRIPTION) \
+			--attribution $(ATTRIBUTION); \
+	else \
+		# Count bands using gdalinfo without requiring jq. This counts lines starting with "Band ".
+		BANDS=$$(gdalinfo $(GEOTIFF_FILE) 2>/dev/null | grep -E "^Band [0-9]+" -c || true); \
+		if [ -z "$$BANDS" ] || [ "$$BANDS" -lt 3 ]; then \
+			echo "Error: input file has less than 3 bands ($$BANDS). rio pmtiles requires at least 3 bands (RGB)."; \
+			exit 1; \
+		fi; \
+		# Default to WEBP and tile-size 512; WebP supports alpha so we can use --rgba when available.
+		FORMAT_FLAG="-f WEBP"; \
+		RGBA_FLAG=""; \
+		TILE_FLAG="--tile-size 512"; \
+		if [ "$$BANDS" -ge 4 ]; then \
+			echo "Input has $$BANDS bands. Enabling --rgba and using WEBP for alpha support."; \
+			RGBA_FLAG="--rgba"; \
+		fi; \
+		rio pmtiles $(GEOTIFF_FILE) $(PMTILES_FILE) $$FORMAT_FLAG $$RGBA_FLAG $$TILE_FLAG \
+			--name $(NAME) \
+			--description $(DESCRIPTION) \
+			--attribution $(ATTRIBUTION); \
+	fi
 	@echo "Conversion complete: $(PMTILES_FILE)"
 
 # Upload PMTiles to server
 upload: $(PMTILES_FILE)
-	rsync --progress -av $(PMTILES_FILE) pod@pod.local:/home/pod/x-24b/data/shin-abidjan.pmtiles
+	rsync --progress -av $(PMTILES_FILE) pod@pod.local:/home/pod/x-24b/data/$(PMTILES_FILE) 
 
 # Clean generated files
 clean:
