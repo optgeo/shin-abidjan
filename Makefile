@@ -18,9 +18,9 @@ RIO_WORKERS ?=
 PMTILES_CO ?=
 
 # Metadata
-NAME := "Maxar 2019 Abidjan Mosaic"
-DESCRIPTION := "Maxar 2019 Abidjan Mosaic by Cristiano Giovando"
-ATTRIBUTION := "© Maxar - CC BY-NC 4.0"
+NAME := Maxar 2019 Abidjan Mosaic
+DESCRIPTION := Maxar 2019 Abidjan Mosaic by Cristiano Giovando
+ATTRIBUTION := © Maxar - CC BY-NC 4.0
 
 .PHONY: all download convert upload clean dirs help
 
