@@ -1,18 +1,21 @@
 #!/usr/bin/env sh
 set -eu
 
-# Usage: convert.sh INPUT OUTPUT FORMAT TILE_SIZE RIO_WORKERS PMTILES_CO NAME DESCRIPTION ATTRIBUTION
+# Usage: convert.sh [INPUT OUTPUT]
+# Prefer environment variables for options (FORMAT, TILE_SIZE, RIO_WORKERS, PMTILES_CO, NAME, DESCRIPTION, ATTRIBUTION)
 # Any argument can be empty; sensible defaults are used where appropriate.
 
 INPUT=${1:-data/5ea338e5c70abb0005869e8f.tif}
 OUTPUT=${2:-output/abidjan-2019.pmtiles}
-FORMAT=${3:-WEBP}
-TILE_SIZE=${4:-512}
-RIO_WORKERS=${5:-}
-PMTILES_CO=${6:-}
-NAME=${7:-"Maxar 2019 Abidjan Mosaic"}
-DESCRIPTION=${8:-"Maxar 2019 Abidjan Mosaic by Cristiano Giovando"}
-ATTRIBUTION=${9:-"© Maxar - CC BY-NC 4.0"}
+
+# Options can be provided as env vars (preferred) or via defaults below
+FORMAT=${FORMAT:-WEBP}
+TILE_SIZE=${TILE_SIZE:-512}
+RIO_WORKERS=${RIO_WORKERS:-}
+PMTILES_CO=${PMTILES_CO:-}
+NAME=${NAME:-"Maxar 2019 Abidjan Mosaic"}
+DESCRIPTION=${DESCRIPTION:-"Maxar 2019 Abidjan Mosaic by Cristiano Giovando"}
+ATTRIBUTION=${ATTRIBUTION:-"© Maxar - CC BY-NC 4.0"}
 
 echo "Converting $INPUT -> $OUTPUT"
 
