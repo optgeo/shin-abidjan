@@ -12,9 +12,11 @@ Maxar 2019 Abidjan Mosaic by Cristiano Giovando in PMTiles
 
 ## Requirements
 
-- `curl` or `wget` for downloading
-- `rio-pmtiles` for conversion
-- Python environment with rasterio
+- `aria2c` or `curl` for downloading (the project prefers `aria2c` for resumable, parallel downloads; `curl` is used as a fallback)
+- `rio-pmtiles` for conversion (install via `pip install rio-pmtiles`)
+- `gdalinfo` (optional, used by the Makefile to validate input bands before conversion)
+
+Note: On macOS you can install missing tools with Homebrew, e.g. `brew install aria2 gdal`.
 
 ## Installation
 
@@ -26,15 +28,36 @@ pip install rio-pmtiles
 
 ### Download the GeoTIFF file
 
+The Makefile's `download` target calls `scripts/download.sh`, which uses `aria2c` when available and falls back to `curl`.
+
+To download (resume-capable):
+
 ```bash
 make download
 ```
 
+If a previous download was interrupted, re-running `make download` will resume with `aria2c` (because `-c` is used). If you prefer to run the script directly:
+
+```bash
+./scripts/download.sh data/5ea338e5c70abb0005869e8f.tif https://oin-hotosm-temp.s3.amazonaws.com/5ea338e5c70abb0005869e8e/0/5ea338e5c70abb0005869e8f.tif
+```
+
+If you see an error about missing tools, install `aria2c` or `curl` as noted above.
+
 ### Convert to PMTiles format
+
+The conversion uses `rio pmtiles`. The Makefile will perform a light validation of the input bands using `gdalinfo` if available:
+
+- If the source has at least 3 bands the conversion proceeds (RGB).
+- If the source has 4 or more bands the Makefile will automatically add `--rgba` and use WebP (`-f WEBP`) as the tile image format.
+
+Default tile size is 512 (the Makefile passes `--tile-size 512`). To convert:
 
 ```bash
 make convert
 ```
+
+If you want to customize format, quality, or other creation options, edit the Makefile or run `rio pmtiles` manually. The `rio pmtiles --help` output is included in the project notes and explains options such as `--co QUALITY=90` or `--co LOSSLESS=TRUE` for WEBP/PNG creation options.
 
 ### Upload to server
 

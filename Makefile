@@ -8,6 +8,15 @@ GEOTIFF_URL := https://oin-hotosm-temp.s3.amazonaws.com/5ea338e5c70abb0005869e8e
 GEOTIFF_FILE := $(DATA_DIR)/5ea338e5c70abb0005869e8f.tif
 PMTILES_FILE := $(OUTPUT_DIR)/abidjan-2019.pmtiles
 
+# Configurable options (override with `make FORMAT=PNG TILE_SIZE=256` etc.)
+FORMAT ?= WEBP
+TILE_SIZE ?= 512
+ARIA_CONNECTIONS ?= 16
+# RIO_WORKERS left empty by default (rio-pmtiles will choose CPU count). Set e.g. RIO_WORKERS=4
+RIO_WORKERS ?=
+# PMTILES_CO can be used to add creation options, e.g. PMTILES_CO=ZLEVEL=8 or PMTILES_CO="QUALITY=90 LOSSLESS=TRUE"
+PMTILES_CO ?=
+
 # Metadata
 NAME := "Maxar 2019 Abidjan Mosaic"
 DESCRIPTION := "Maxar 2019 Abidjan Mosaic by Cristiano Giovando"
@@ -27,7 +36,7 @@ dirs:
 # Download the GeoTIFF file
 download: dirs
 	@echo "Downloading GeoTIFF file from OpenAerialMap..."
-	@./scripts/download.sh $(GEOTIFF_FILE) $(GEOTIFF_URL)
+	@./scripts/download.sh $(GEOTIFF_FILE) $(GEOTIFF_URL) $(ARIA_CONNECTIONS)
 
 # Convert GeoTIFF to PMTiles with metadata
 # Ensure the download target runs first so the input file exists
@@ -37,11 +46,16 @@ convert: download
 	# use the --rgba flag for rio pmtiles.
 	@if ! command -v gdalinfo >/dev/null 2>&1; then \
 		echo "gdalinfo not found. Install GDAL (e.g. 'brew install gdal') to validate input bands."; \
-		# Fall back to running rio pmtiles without pre-check; default to WEBP and tile-size 512
-		FORMAT_FLAG="-f WEBP"; \
+		# Fall back to running rio pmtiles without pre-check; use configured FORMAT and TILE_SIZE
+		FORMAT_FLAG="-f $(FORMAT)"; \
 		RGBA_FLAG=""; \
-		TILE_FLAG="--tile-size 512"; \
-		rio pmtiles $(GEOTIFF_FILE) $(PMTILES_FILE) $$FORMAT_FLAG $$RGBA_FLAG $$TILE_FLAG \
+		TILE_FLAG="--tile-size $(TILE_SIZE)"; \
+		# Pass creation options if provided
+		CO_FLAGS=""; \
+		if [ -n "$(PMTILES_CO)" ]; then \
+			for kv in $(PMTILES_CO); do CO_FLAGS="$$CO_FLAGS --co $$kv"; done; \
+		fi; \
+		rio pmtiles $(GEOTIFF_FILE) $(PMTILES_FILE) $$FORMAT_FLAG $$RGBA_FLAG $$TILE_FLAG $$CO_FLAGS $(if $(RIO_WORKERS),-j $(RIO_WORKERS),) \
 			--name $(NAME) \
 			--description $(DESCRIPTION) \
 			--attribution $(ATTRIBUTION); \
@@ -52,15 +66,19 @@ convert: download
 			echo "Error: input file has less than 3 bands ($$BANDS). rio pmtiles requires at least 3 bands (RGB)."; \
 			exit 1; \
 		fi; \
-		# Default to WEBP and tile-size 512; WebP supports alpha so we can use --rgba when available.
-		FORMAT_FLAG="-f WEBP"; \
+		# Default to configured FORMAT and TILE_SIZE; WebP supports alpha so we can use --rgba when available.
+		FORMAT_FLAG="-f $(FORMAT)"; \
 		RGBA_FLAG=""; \
-		TILE_FLAG="--tile-size 512"; \
+		TILE_FLAG="--tile-size $(TILE_SIZE)"; \
 		if [ "$$BANDS" -ge 4 ]; then \
-			echo "Input has $$BANDS bands. Enabling --rgba and using WEBP for alpha support."; \
+			echo "Input has $$BANDS bands. Enabling --rgba and using $(FORMAT) for alpha support."; \
 			RGBA_FLAG="--rgba"; \
 		fi; \
-		rio pmtiles $(GEOTIFF_FILE) $(PMTILES_FILE) $$FORMAT_FLAG $$RGBA_FLAG $$TILE_FLAG \
+		CO_FLAGS=""; \
+		if [ -n "$(PMTILES_CO)" ]; then \
+			for kv in $(PMTILES_CO); do CO_FLAGS="$$CO_FLAGS --co $$kv"; done; \
+		fi; \
+		rio pmtiles $(GEOTIFF_FILE) $(PMTILES_FILE) $$FORMAT_FLAG $$RGBA_FLAG $$TILE_FLAG $$CO_FLAGS $(if $(RIO_WORKERS),-j $(RIO_WORKERS),) \
 			--name $(NAME) \
 			--description $(DESCRIPTION) \
 			--attribution $(ATTRIBUTION); \
