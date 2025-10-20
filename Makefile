@@ -40,50 +40,10 @@ download: dirs
 
 # Convert GeoTIFF to PMTiles with metadata
 # Ensure the download target runs first so the input file exists
+
 convert: download
-	@echo "Converting GeoTIFF to PMTiles..."
-	# Verify input has at least 3 bands (RGB). If 4 bands exist and you want alpha,
-	# use the --rgba flag for rio pmtiles.
-	@if ! command -v gdalinfo >/dev/null 2>&1; then \
-		echo "gdalinfo not found. Install GDAL (e.g. 'brew install gdal') to validate input bands."; \
-		# Fall back to running rio pmtiles without pre-check; use configured FORMAT and TILE_SIZE
-		FORMAT_FLAG="-f $(FORMAT)"; \
-		RGBA_FLAG=""; \
-		TILE_FLAG="--tile-size $(TILE_SIZE)"; \
-		# Pass creation options if provided
-		CO_FLAGS=""; \
-		if [ -n "$(PMTILES_CO)" ]; then \
-			for kv in $(PMTILES_CO); do CO_FLAGS="$$CO_FLAGS --co $$kv"; done; \
-		fi; \
-		rio pmtiles $(GEOTIFF_FILE) $(PMTILES_FILE) $$FORMAT_FLAG $$RGBA_FLAG $$TILE_FLAG $$CO_FLAGS $(if $(RIO_WORKERS),-j $(RIO_WORKERS),) \
-			--name $(NAME) \
-			--description $(DESCRIPTION) \
-			--attribution $(ATTRIBUTION); \
-	else \
-		# Count bands using gdalinfo without requiring jq. This counts lines starting with "Band ".
-		BANDS=$$(gdalinfo $(GEOTIFF_FILE) 2>/dev/null | grep -E "^Band [0-9]+" -c || true); \
-		if [ -z "$$BANDS" ] || [ "$$BANDS" -lt 3 ]; then \
-			echo "Error: input file has less than 3 bands ($$BANDS). rio pmtiles requires at least 3 bands (RGB)."; \
-			exit 1; \
-		fi; \
-		# Default to configured FORMAT and TILE_SIZE; WebP supports alpha so we can use --rgba when available.
-		FORMAT_FLAG="-f $(FORMAT)"; \
-		RGBA_FLAG=""; \
-		TILE_FLAG="--tile-size $(TILE_SIZE)"; \
-		if [ "$$BANDS" -ge 4 ]; then \
-			echo "Input has $$BANDS bands. Enabling --rgba and using $(FORMAT) for alpha support."; \
-			RGBA_FLAG="--rgba"; \
-		fi; \
-		CO_FLAGS=""; \
-		if [ -n "$(PMTILES_CO)" ]; then \
-			for kv in $(PMTILES_CO); do CO_FLAGS="$$CO_FLAGS --co $$kv"; done; \
-		fi; \
-		rio pmtiles $(GEOTIFF_FILE) $(PMTILES_FILE) $$FORMAT_FLAG $$RGBA_FLAG $$TILE_FLAG $$CO_FLAGS $(if $(RIO_WORKERS),-j $(RIO_WORKERS),) \
-			--name $(NAME) \
-			--description $(DESCRIPTION) \
-			--attribution $(ATTRIBUTION); \
-	fi
-	@echo "Conversion complete: $(PMTILES_FILE)"
+	@echo "Converting GeoTIFF to PMTiles (script)..."
+	@./scripts/convert.sh $(GEOTIFF_FILE) $(PMTILES_FILE) $(FORMAT) $(TILE_SIZE) $(RIO_WORKERS) "$(PMTILES_CO)" "$(NAME)" "$(DESCRIPTION)" "$(ATTRIBUTION)"
 
 # Upload PMTiles to server
 upload: $(PMTILES_FILE)
