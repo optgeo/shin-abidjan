@@ -38,6 +38,7 @@ make convert
 
 ### Upload to server
 
+> **Prerequisite:** This step requires SSH access to `pod@pod.local` and a valid destination path. You may need to configure these to match your environment.
 ```bash
 make upload
 ```
