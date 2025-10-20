@@ -12,7 +12,6 @@ PMTILES_FILE := $(OUTPUT_DIR)/abidjan-2019.pmtiles
 NAME := "Maxar 2019 Abidjan Mosaic"
 DESCRIPTION := "Maxar 2019 Abidjan Mosaic by Cristiano Giovando"
 ATTRIBUTION := "© Maxar - CC BY-NC 4.0"
-LICENSE := "CC BY-NC 4.0"
 
 .PHONY: all download convert upload clean dirs help
 
