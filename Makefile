@@ -13,7 +13,10 @@ FORMAT ?= WEBP
 TILE_SIZE ?= 512
 ARIA_CONNECTIONS ?= 2
 # RIO_WORKERS left empty by default (rio-pmtiles will choose CPU count). Set e.g. RIO_WORKERS=4
-RIO_WORKERS ?=
+# Conservative default: use 1 worker to limit memory/CPU usage
+RIO_WORKERS ?= 1
+# Local tmp directory used during conversion (will be created if missing)
+TMP_DIR ?= ./tmp
 # PMTILES_CO can be used to add creation options, e.g. PMTILES_CO=ZLEVEL=8 or PMTILES_CO="QUALITY=90 LOSSLESS=TRUE"
 PMTILES_CO ?=
 

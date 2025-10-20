@@ -11,11 +11,22 @@ OUTPUT=${2:-output/abidjan-2019.pmtiles}
 # Options can be provided as env vars (preferred) or via defaults below
 FORMAT=${FORMAT:-WEBP}
 TILE_SIZE=${TILE_SIZE:-512}
-RIO_WORKERS=${RIO_WORKERS:-}
+# Conservative default to limit memory: use 1 worker unless overridden
+RIO_WORKERS=${RIO_WORKERS:-1}
 PMTILES_CO=${PMTILES_CO:-}
 NAME=${NAME:-"Maxar 2019 Abidjan Mosaic"}
 DESCRIPTION=${DESCRIPTION:-"Maxar 2019 Abidjan Mosaic by Cristiano Giovando"}
 ATTRIBUTION=${ATTRIBUTION:-"© Maxar - CC BY-NC 4.0"}
+
+# Use local tmp dir by default to avoid filling system /tmp
+TMPDIR=${TMPDIR:-./tmp}
+
+# Ensure tmp dir exists and is writable
+mkdir -p "$TMPDIR"
+
+# Conservative environment defaults to reduce memory usage
+export GDAL_CACHEMAX=${GDAL_CACHEMAX:-256} # MB
+export OMP_NUM_THREADS=${OMP_NUM_THREADS:-1}
 
 echo "Converting $INPUT -> $OUTPUT"
 
