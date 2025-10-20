@@ -11,7 +11,7 @@ PMTILES_FILE := $(OUTPUT_DIR)/abidjan-2019.pmtiles
 # Configurable options (override with `make FORMAT=PNG TILE_SIZE=256` etc.)
 FORMAT ?= WEBP
 TILE_SIZE ?= 512
-ARIA_CONNECTIONS ?= 16
+ARIA_CONNECTIONS ?= 2
 # RIO_WORKERS left empty by default (rio-pmtiles will choose CPU count). Set e.g. RIO_WORKERS=4
 RIO_WORKERS ?=
 # PMTILES_CO can be used to add creation options, e.g. PMTILES_CO=ZLEVEL=8 or PMTILES_CO="QUALITY=90 LOSSLESS=TRUE"
