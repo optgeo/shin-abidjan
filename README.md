@@ -42,9 +42,9 @@ make convert
 make upload
 ```
 
-This will execute:
+This will execute (where `$(PMTILES_FILE)` resolves to `output/abidjan-2019.pmtiles`):
 ```bash
-rsync --progress -av output/abidjan-2019.pmtiles pod@pod.local:/home/pod/x-24b/data/shin-abidjan.pmtiles
+rsync --progress -av $(PMTILES_FILE) pod@pod.local:/home/pod/x-24b/data/shin-abidjan.pmtiles
 ```
 
 ### Run all steps
