@@ -43,7 +43,7 @@ download: dirs
 
 convert: download
 	@echo "Converting GeoTIFF to PMTiles (script)..."
-	@./scripts/convert.sh $(GEOTIFF_FILE) $(PMTILES_FILE) $(FORMAT) $(TILE_SIZE) $(RIO_WORKERS) "$(PMTILES_CO)" "$(NAME)" "$(DESCRIPTION)" "$(ATTRIBUTION)"
+	@./scripts/convert.sh $(GEOTIFF_FILE) $(PMTILES_FILE) $(FORMAT) $(TILE_SIZE) $(RIO_WORKERS) $(PMTILES_CO) "$(NAME)" "$(DESCRIPTION)" "$(ATTRIBUTION)"
 
 # Upload PMTiles to server
 upload: $(PMTILES_FILE)

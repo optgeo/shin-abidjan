@@ -45,7 +45,11 @@ fi
 CO_FLAGS=""
 if [ -n "$PMTILES_CO" ]; then
   for kv in $PMTILES_CO; do
-    CO_FLAGS="$CO_FLAGS --co $kv"
+    # Only accept KEY=VAL pairs for --co
+    case "$kv" in
+      *=*) CO_FLAGS="$CO_FLAGS --co $kv" ;;
+      *) echo "Warning: skipping invalid PMTILES_CO token: '$kv' (expected KEY=VAL)" >&2 ;;
+    esac
   done
 fi
 
