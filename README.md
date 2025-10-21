@@ -10,6 +10,15 @@ Maxar 2019 Abidjan Mosaic by Cristiano Giovando in PMTiles
 - **ライセンス**: CC BY-NC 4.0
 - **作成者**: Cristiano Giovando
 
+## About the Name
+
+The name **shin-abidjan** is a playful combination that reflects the project's goal:
+
+- **shin** (新) evokes the **Shinkansen** (新幹線), Japan's famous bullet train known for its speed, reliability, and high throughput
+- **abidjan** refers to the Abidjan mosaic data that forms the core of this project
+
+Together, **shin-abidjan** signals our intent to deliver image tiles as fast and reliably as a bullet train. Just as the Shinkansen revolutionized rail travel with its remarkable performance, this project aims to provide high-performance tile delivery for geospatial data.
+
 ## Requirements
 
 - `aria2c` or `curl` for downloading (the project prefers `aria2c` for resumable, parallel downloads; `curl` is used as a fallback)
