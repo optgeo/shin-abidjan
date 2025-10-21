@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Abidjan 2019 PMTiles Viewer</title>
-  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+  <link href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" rel="stylesheet" />
   <style>
     html, body, #map { height: 100%; margin: 0; }
     .toolbar {
@@ -32,8 +32,6 @@
       <button id="togglePanel" class="toggle" aria-expanded="false" title="設定を表示/隠す">▶</button>
       <strong>Imagery PMTiles Viewer</strong>
       <span style="flex:1 1 auto"></span>
-      <button id="locateBtn" class="small-btn" title="現在地へ移動">現在地</button>
-      <button id="globeBtn" class="small-btn" title="Globe 投影を切替">Globe</button>
     </div>
     <div class="panel-body">
     <div class="row">
@@ -59,7 +57,7 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
   <script>
     // 地図初期化（Abidjan 近辺）
@@ -79,6 +77,16 @@
       showUserLocation: true
     });
     map.addControl(geolocateControl, 'top-right');
+    // Globe control (if available). Fallback to ProjectionControl if GlobeControl is unavailable.
+    if (typeof maplibregl.GlobeControl === 'function') {
+      map.addControl(new maplibregl.GlobeControl(), 'top-right');
+    } else if (typeof maplibregl.ProjectionControl === 'function') {
+      try {
+        map.addControl(new maplibregl.ProjectionControl({ projections: ['mercator', 'globe'] }), 'top-right');
+      } catch (e) {
+        console.warn('ProjectionControl add failed:', e);
+      }
+    }
 
     // pmtiles プロトコル登録
     const protocol = new pmtiles.Protocol();
@@ -153,13 +161,26 @@
       }
 
       const sourceDef = hasTiles
-        ? { type: 'raster', tiles, tileSize: tj.tileSize || tj.tile_size || 512, attribution: tj.attribution }
+        ? { type: 'raster', tiles, tileSize: tj.tileSize || tj.tile_size || 512 }
         : { type: 'raster', url: tilejsonUrl };
+      // attribution が null/undefined の場合に key 自体を付与しない
+      if (typeof tj?.attribution === 'string' && tj.attribution.trim().length > 0) {
+        sourceDef.attribution = tj.attribution;
+      }
 
       whenLoaded(() => {
-        map.addSource(id, sourceDef);
-        map.addLayer({ id, type: 'raster', source: id });
-  map.setMaxZoom(opts.maxZoom ?? 20);
+        try {
+          map.addSource(id, sourceDef);
+        } catch (e) {
+          console.warn('addSource failed:', e);
+          return;
+        }
+        try {
+          map.addLayer({ id, type: 'raster', source: id });
+        } catch (e) {
+          console.warn('addLayer failed:', e);
+        }
+        map.setMaxZoom(opts.maxZoom ?? 20);
       });
 
       // フィット（可能なら TileJSON の bounds/center）
@@ -203,8 +224,6 @@
     // パネルの折りたたみ制御（起動時は最小化）
   const panel = document.getElementById('panel');
   const toggleBtn = document.getElementById('togglePanel');
-  const locateBtn = document.getElementById('locateBtn');
-  const globeBtn = document.getElementById('globeBtn');
     function setPanelExpanded(expanded) {
       panel.classList.toggle('minimized', !expanded);
       toggleBtn.textContent = expanded ? '▼' : '▶';
@@ -216,21 +235,7 @@
       setPanelExpanded(next);
     };
 
-    // 現在地ボタン: GeolocateControl をトリガー
-    locateBtn.onclick = () => {
-      try { geolocateControl.trigger(); } catch (e) { console.warn('Geolocate trigger failed:', e); }
-    };
-
-    // Globe 切替ボタン: mercator/globe をトグル
-    let globeOn = false;
-    function applyProjection() {
-      const target = globeOn ? { name: 'globe' } : { name: 'mercator' };
-      try { map.setProjection(target); } catch (e) { console.warn('setProjection failed:', e); }
-      globeBtn.textContent = globeOn ? 'Globe: ON' : 'Globe';
-      globeBtn.title = globeOn ? 'Globe を無効化' : 'Globe 投影を有効化';
-    }
-    globeBtn.onclick = () => { globeOn = !globeOn; applyProjection(); };
-    applyProjection();
+    // 独自の現在地/Globe ボタンは廃止（標準コントロールを使用）
 
     // 入力欄に既定値をセット
     tilejsonInput.value = tilejsonUrl;
