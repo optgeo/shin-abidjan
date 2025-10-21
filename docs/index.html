@@ -100,13 +100,51 @@
       }
     }
 
-    function setRasterFromTileJSON(tilejsonUrl, opts = {}) {
+    // WebP 対応可否を非同期判定
+    const webpSupportPromise = (function testWebP(){
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve(img.width > 0 && img.height > 0);
+        img.onerror = () => resolve(false);
+        // 2x1 の最小 WebP 画像（lossy）
+        img.src = 'data:image/webp;base64,UklGRjIAAABXRUJQVlA4ICAAAABwAgCdASoEAAQAAVAfJZACdLoAAP7/AA=='
+      });
+    })();
+
+    async function setRasterFromTileJSON(tilejsonUrl, opts = {}) {
       const id = 'abidjan-raster';
       resetSource(id);
-      map.addSource(id, { type: 'raster', url: tilejsonUrl });
-      map.addLayer({ id, type: 'raster', source: id });
-      map.setMaxZoom(opts.maxZoom ?? 19);
-      // TileJSONからbounds/centerを取得してフィット
+
+      let tj; // 取得した TileJSON
+      try {
+        const res = await fetch(tilejsonUrl, { mode: 'cors' });
+        tj = await res.json();
+      } catch (e) {
+        console.error('Failed to fetch TileJSON:', tilejsonUrl, e);
+        return;
+      }
+
+      // tiles 配列が存在しない場合は url 指定にフォールバック
+      const hasTiles = tj && Array.isArray(tj.tiles) && tj.tiles.length > 0;
+
+      // WebP 非対応ブラウザでは .webp -> .png 差し替え（サーバ側がPNG対応している前提）
+      const webpOk = await webpSupportPromise;
+      let tiles = hasTiles ? [...tj.tiles] : null;
+      if (tiles && !webpOk) {
+        tiles = tiles.map(u => u.replace(/\.webp(\b|$)/i, '.png'));
+      }
+
+      const sourceDef = hasTiles
+        ? { type: 'raster', tiles, tileSize: tj.tileSize || tj.tile_size || 512, attribution: tj.attribution }
+        : { type: 'raster', url: tilejsonUrl };
+
+      whenLoaded(() => {
+        map.addSource(id, sourceDef);
+        map.addLayer({ id, type: 'raster', source: id });
+        map.setMaxZoom(opts.maxZoom ?? (tj.maxzoom ?? 19));
+      });
+
+      // フィット（可能なら TileJSON の bounds/center）
       fitFromTileJSON(tilejsonUrl);
     }
 
@@ -125,6 +163,12 @@
       map.setMaxZoom(opts.maxZoom ?? 19);
       // PMTiles メタからのフィットは簡易化のため省略（必要なら拡張可能）
     }
+
+    // エラーイベントを拾って、失敗URLなどの手がかりを出力
+    map.on('error', (e) => {
+      // MapLibre は image decode 失敗時などに汎用エラーを出すため、手がかりをまとめて出力
+      console.warn('Map error:', e && e.error ? e.error : e);
+    });
 
     // クエリパラメータ対応
     const params = new URLSearchParams(location.search);
