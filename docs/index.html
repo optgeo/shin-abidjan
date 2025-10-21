@@ -19,6 +19,7 @@
     .hints { font-size: 12px; color: #444; margin-top: 6px; }
     .links { margin-top: 4px; font-size: 12px; }
     .links a { margin-right: 8px; }
+    .small-btn { cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 4px; padding: 2px 8px; }
     .panel-header { display: flex; align-items: center; gap: 8px; }
     .toggle { cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 4px; padding: 2px 6px; }
     .toolbar.minimized .panel-body { display: none; }
@@ -29,7 +30,10 @@
   <div class="toolbar minimized" id="panel">
     <div class="panel-header row">
       <button id="togglePanel" class="toggle" aria-expanded="false" title="設定を表示/隠す">▶</button>
-      <strong>Abidjan 2019 ラスタ表示</strong>
+      <strong>Imagery PMTiles Viewer</strong>
+      <span style="flex:1 1 auto"></span>
+      <button id="locateBtn" class="small-btn" title="現在地へ移動">現在地</button>
+      <button id="globeBtn" class="small-btn" title="Globe 投影を切替">Globe</button>
     </div>
     <div class="panel-body">
     <div class="row">
@@ -64,9 +68,17 @@
       style: { version: 8, sources: {}, layers: [] },
       center: [-4.01, 5.34],
       zoom: 11,
-      maxZoom: 22
+      maxZoom: 20,
+      hash: true
     });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+    // Geolocation control
+    const geolocateControl = new maplibregl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: false,
+      showUserLocation: true
+    });
+    map.addControl(geolocateControl, 'top-right');
 
     // pmtiles プロトコル登録
     const protocol = new pmtiles.Protocol();
@@ -96,7 +108,7 @@
         const tj = await res.json();
         if (tj && Array.isArray(tj.bounds) && tj.bounds.length === 4) {
           const [w,s,e,n] = tj.bounds;
-          map.fitBounds([[w, s], [e, n]], { padding: 20, maxZoom: tj.maxzoom ?? 19 });
+          map.fitBounds([[w, s], [e, n]], { padding: 20, maxZoom: Math.min(20, tj.maxzoom ?? 20) });
         } else if (tj && Array.isArray(tj.center) && tj.center.length >= 2) {
           map.setCenter([tj.center[0], tj.center[1]]);
           if (typeof tj.center[2] === 'number') map.setZoom(tj.center[2]);
@@ -147,7 +159,7 @@
       whenLoaded(() => {
         map.addSource(id, sourceDef);
         map.addLayer({ id, type: 'raster', source: id });
-        map.setMaxZoom(opts.maxZoom ?? (tj.maxzoom ?? 19));
+  map.setMaxZoom(opts.maxZoom ?? 20);
       });
 
       // フィット（可能なら TileJSON の bounds/center）
@@ -166,7 +178,7 @@
         tileSize: 512
       });
       map.addLayer({ id, type: 'raster', source: id });
-      map.setMaxZoom(opts.maxZoom ?? 19);
+  map.setMaxZoom(opts.maxZoom ?? 20);
       // PMTiles メタからのフィットは簡易化のため省略（必要なら拡張可能）
     }
 
@@ -189,8 +201,10 @@
     const loadPmtilesBtn = document.getElementById('loadPmtiles');
 
     // パネルの折りたたみ制御（起動時は最小化）
-    const panel = document.getElementById('panel');
-    const toggleBtn = document.getElementById('togglePanel');
+  const panel = document.getElementById('panel');
+  const toggleBtn = document.getElementById('togglePanel');
+  const locateBtn = document.getElementById('locateBtn');
+  const globeBtn = document.getElementById('globeBtn');
     function setPanelExpanded(expanded) {
       panel.classList.toggle('minimized', !expanded);
       toggleBtn.textContent = expanded ? '▼' : '▶';
@@ -201,6 +215,22 @@
       const next = toggleBtn.getAttribute('aria-expanded') !== 'true';
       setPanelExpanded(next);
     };
+
+    // 現在地ボタン: GeolocateControl をトリガー
+    locateBtn.onclick = () => {
+      try { geolocateControl.trigger(); } catch (e) { console.warn('Geolocate trigger failed:', e); }
+    };
+
+    // Globe 切替ボタン: mercator/globe をトグル
+    let globeOn = false;
+    function applyProjection() {
+      const target = globeOn ? { name: 'globe' } : { name: 'mercator' };
+      try { map.setProjection(target); } catch (e) { console.warn('setProjection failed:', e); }
+      globeBtn.textContent = globeOn ? 'Globe: ON' : 'Globe';
+      globeBtn.title = globeOn ? 'Globe を無効化' : 'Globe 投影を有効化';
+    }
+    globeBtn.onclick = () => { globeOn = !globeOn; applyProjection(); };
+    applyProjection();
 
     // 入力欄に既定値をセット
     tilejsonInput.value = tilejsonUrl;
