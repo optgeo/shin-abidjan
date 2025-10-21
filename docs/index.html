@@ -66,6 +66,16 @@
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol('pmtiles', protocol.tile);
 
+    // MapLibre はスタイル読込完了前に addSource/addLayer するとエラーになるため、
+    // すべての addSource 系は load 後に実行する。
+    function whenLoaded(fn) {
+      if (map.isStyleLoaded && map.isStyleLoaded()) {
+        fn();
+      } else {
+        map.once('load', fn);
+      }
+    }
+
     // 既存レイヤ/ソースを除去
     function resetSource(id) {
       if (map.getLayer(id)) map.removeLayer(id);
@@ -128,25 +138,26 @@
     const loadTilejsonBtn = document.getElementById('loadTilejson');
     const loadPmtilesBtn = document.getElementById('loadPmtiles');
 
-    // 既定は TileJSON をロード
+    // 入力欄に既定値をセット
     tilejsonInput.value = tilejsonUrl;
-    setRasterFromTileJSON(tilejsonUrl);
+    pmtilesInput.value = pmtilesUrl || defaultPMTiles;
 
-    // 明示的に pmtiles= が来ていたら PMTiles を優先
-    if (pmtilesUrl) {
-      pmtilesInput.value = pmtilesUrl;
-      setRasterFromPMTiles(pmtilesUrl);
-    } else {
-      pmtilesInput.value = defaultPMTiles;
-    }
+    // 初期ロードは style load 後に実行
+    whenLoaded(() => {
+      // 既定は TileJSON をロード
+      setRasterFromTileJSON(tilejsonUrl);
+      // 明示的に pmtiles= が来ていたら PMTiles を優先適用（上書き）
+      if (pmtilesUrl) setRasterFromPMTiles(pmtilesUrl);
+    });
 
+    // ボタン操作も style load 後に実行
     loadTilejsonBtn.onclick = () => {
       const url = tilejsonInput.value.trim();
-      if (url) setRasterFromTileJSON(url);
+      if (url) whenLoaded(() => setRasterFromTileJSON(url));
     };
     loadPmtilesBtn.onclick = () => {
       const url = pmtilesInput.value.trim();
-      if (url) setRasterFromPMTiles(url);
+      if (url) whenLoaded(() => setRasterFromPMTiles(url));
     };
   </script>
 </body>
