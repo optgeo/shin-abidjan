@@ -19,14 +19,19 @@
     .hints { font-size: 12px; color: #444; margin-top: 6px; }
     .links { margin-top: 4px; font-size: 12px; }
     .links a { margin-right: 8px; }
+    .panel-header { display: flex; align-items: center; gap: 8px; }
+    .toggle { cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 4px; padding: 2px 6px; }
+    .toolbar.minimized .panel-body { display: none; }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <div class="toolbar">
-    <div class="row">
+  <div class="toolbar minimized" id="panel">
+    <div class="panel-header row">
+      <button id="togglePanel" class="toggle" aria-expanded="false" title="設定を表示/隠す">▶</button>
       <strong>Abidjan 2019 ラスタ表示</strong>
     </div>
+    <div class="panel-body">
     <div class="row">
       <label for="tilejsonInput">TileJSON URL:</label>
       <input id="tilejsonInput" placeholder="https://tunnel.optgeo.org/martin/abidjan-2019" />
@@ -46,6 +51,7 @@
       Quick Links:
       <a href="?tilejson=https://tunnel.optgeo.org/martin/abidjan-2019">TileJSONを読み込む</a>
       <a href="?pmtiles=https://tunnel.optgeo.org/abidjan-2019.pmtiles">PMTilesを読み込む</a>
+    </div>
     </div>
   </div>
 
@@ -181,6 +187,20 @@
     const pmtilesInput = document.getElementById('pmtilesInput');
     const loadTilejsonBtn = document.getElementById('loadTilejson');
     const loadPmtilesBtn = document.getElementById('loadPmtiles');
+
+    // パネルの折りたたみ制御（起動時は最小化）
+    const panel = document.getElementById('panel');
+    const toggleBtn = document.getElementById('togglePanel');
+    function setPanelExpanded(expanded) {
+      panel.classList.toggle('minimized', !expanded);
+      toggleBtn.textContent = expanded ? '▼' : '▶';
+      toggleBtn.setAttribute('aria-expanded', String(expanded));
+    }
+    setPanelExpanded(false);
+    toggleBtn.onclick = () => {
+      const next = toggleBtn.getAttribute('aria-expanded') !== 'true';
+      setPanelExpanded(next);
+    };
 
     // 入力欄に既定値をセット
     tilejsonInput.value = tilejsonUrl;
