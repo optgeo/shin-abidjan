@@ -350,7 +350,7 @@
             } catch (e) { console.warn('add place labels failed', e); }
           }
 
-          // POI ラベル（高ズーム向け）: テキスト小さめ、出現ズーム+2
+          // POI ラベル（高ズーム向け）: テキスト小さめ
           if (lyrPoi) {
             try {
               map.addLayer({
@@ -369,7 +369,8 @@
                   'text-halo-color': 'rgba(0,0,0,0.9)',
                   'text-halo-width': 1.2
                 },
-                minzoom: 16
+                // Protomaps ベクトルの maxzoom が 15 のため、実表示が可能な 14 から出す
+                minzoom: 14
               });
               console.log('[overlay] layer added: proto-poi-labels');
             } catch (e) { console.warn('add poi labels failed', e); }
