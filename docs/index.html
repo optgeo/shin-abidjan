@@ -92,15 +92,7 @@
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol('pmtiles', protocol.tile);
 
-    // MapLibre はスタイル読込完了前に addSource/addLayer するとエラーになるため、
-    // すべての addSource 系は load 後に実行する。
-    function whenLoaded(fn) {
-      if (map.isStyleLoaded && map.isStyleLoaded()) {
-        fn();
-      } else {
-        map.once('load', fn);
-      }
-    }
+    // Map の初期化は load 後に一元化して実施する
 
     // オーバーレイレイヤの ID 一覧
     const OVERLAY_LAYER_IDS = ['proto-place-labels', 'proto-poi-labels'];
@@ -160,7 +152,7 @@
     })();
 
     async function setRasterFromTileJSON(tilejsonUrl, opts = {}) {
-      const id = 'abidjan-raster';
+      const id = 'imagery';
       resetSource(id);
 
       let tj; // 取得した TileJSON
@@ -196,9 +188,7 @@
         sourceDef.attribution = tj.attribution;
       }
 
-      whenLoaded(() => {
-        addRasterSourceAndLayer(id, sourceDef, opts);
-      });
+      addRasterSourceAndLayer(id, sourceDef, opts);
 
       // フィット（可能なら TileJSON の bounds/center）
       if (!(location.hash && location.hash.length > 1)) {
@@ -207,7 +197,7 @@
     }
 
     function setRasterFromPMTiles(url, opts = {}) {
-      const id = 'abidjan-raster';
+      const id = 'imagery';
       resetSource(id);
       // キャッシュ向上: 事前に PMTiles インスタンスを登録
       protocol.add(new pmtiles.PMTiles(url));
@@ -235,6 +225,12 @@
     const rawProtomaps = params.get('protomaps');
     const defaultProtomaps = 'https://tunnel.optgeo.org/martin/protomaps-basemap';
     const protomapsUrl = (rawProtomaps === 'none') ? null : (rawProtomaps || defaultProtomaps);
+    console.log('[viewer] init', {
+      tilejsonUrl,
+      pmtilesUrl,
+      protomapsUrl,
+      hash: location.hash
+    });
 
     const tilejsonInput = document.getElementById('tilejsonInput');
     const pmtilesInput = document.getElementById('pmtilesInput');
@@ -261,45 +257,61 @@
     tilejsonInput.value = tilejsonUrl;
     pmtilesInput.value = pmtilesUrl || defaultPMTiles;
 
-    // 初期ロードは style load 後に実行
-    whenLoaded(() => {
+    // 初期ロードは style load 後に一度だけ実行
+    function initAfterLoad() {
       // 既定は TileJSON をロード
       setRasterFromTileJSON(tilejsonUrl);
       // 明示的に pmtiles= が来ていたら PMTiles を優先適用（上書き）
       if (pmtilesUrl) setRasterFromPMTiles(pmtilesUrl);
       // Protomaps オーバーレイ（低ズーム: 地名ラベル / 高ズーム: POI）
       if (protomapsUrl) addProtomapsOverlay(protomapsUrl);
-    });
+    }
+    if (map.isStyleLoaded && map.isStyleLoaded()) {
+      initAfterLoad();
+    } else {
+      map.once('load', initAfterLoad);
+    }
 
-    // ボタン操作も style load 後に実行
+    // ボタン操作
     loadTilejsonBtn.onclick = () => {
       const url = tilejsonInput.value.trim();
-      if (url) whenLoaded(() => setRasterFromTileJSON(url));
+      if (url) setRasterFromTileJSON(url);
     };
     loadPmtilesBtn.onclick = () => {
       const url = pmtilesInput.value.trim();
-      if (url) whenLoaded(() => setRasterFromPMTiles(url));
+      if (url) setRasterFromPMTiles(url);
     };
     
     // Protomaps ベースマップの最小オーバーレイ: 低ズーム=地名ラベル, 高ズーム=POI
     async function addProtomapsOverlay(tilejsonUrl) {
       const sourceId = 'proto';
       try {
+        console.log('[overlay] fetching TileJSON:', tilejsonUrl);
         const res = await fetch(tilejsonUrl, { mode: 'cors' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const tj = await res.json();
 
-  // 既存のレイヤを先に消す
-  OVERLAY_LAYER_IDS.forEach(lid => { if (map.getLayer(lid)) try{ map.removeLayer(lid); } catch{} });
-  if (map.getSource(sourceId)) map.removeSource(sourceId);
+        // 以降は map がロード済みである前提（初期化を一元化）
 
-        const sourceDef = { type: 'vector', url: tilejsonUrl };
+        // 既存のレイヤを先に消す
+        OVERLAY_LAYER_IDS.forEach(lid => { if (map.getLayer(lid)) try{ map.removeLayer(lid); } catch{} });
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+        const hasTiles = tj && Array.isArray(tj.tiles) && tj.tiles.length > 0;
+        const sourceDef = hasTiles
+          ? {
+              type: 'vector',
+              tiles: tj.tiles,
+              minzoom: typeof tj.minzoom === 'number' ? tj.minzoom : 0,
+              maxzoom: typeof tj.maxzoom === 'number' ? tj.maxzoom : 22
+            }
+          : { type: 'vector', url: tilejsonUrl };
         if (typeof tj?.attribution === 'string' && tj.attribution.trim()) {
           sourceDef.attribution = tj.attribution;
         }
 
-        whenLoaded(() => {
-          try { map.addSource(sourceId, sourceDef); } catch {}
+        try { map.addSource(sourceId, sourceDef); } catch (e) { console.warn('add overlay source failed', e); return; }
+        console.log('[overlay] source added:', sourceId, sourceDef);
 
           const vecLayers = Array.isArray(tj.vector_layers) ? tj.vector_layers : [];
           const findLayerId = (keywords) => {
@@ -310,6 +322,7 @@
 
           const lyrPlaces = findLayerId(['place','places','label']);
           const lyrPoi    = findLayerId(['poi','pois','amenity']);
+          console.log('[overlay] detected layers', { lyrPlaces, lyrPoi });
 
           // 地名ラベル（低ズーム向け）: テキスト小さめ、出現ズーム+2
           if (lyrPlaces) {
@@ -333,6 +346,7 @@
                 minzoom: 5,
                 maxzoom: 15
               });
+              console.log('[overlay] layer added: proto-place-labels');
             } catch (e) { console.warn('add place labels failed', e); }
           }
 
@@ -357,9 +371,9 @@
                 },
                 minzoom: 16
               });
+              console.log('[overlay] layer added: proto-poi-labels');
             } catch (e) { console.warn('add poi labels failed', e); }
           }
-        });
       } catch (e) {
         console.warn('Protomaps overlay load failed:', e);
       }
