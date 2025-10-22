@@ -102,6 +102,28 @@
       }
     }
 
+    // オーバーレイレイヤの ID 一覧
+    const OVERLAY_LAYER_IDS = ['proto-place-labels', 'proto-poi-labels'];
+
+    // ラスタを常にオーバーレイ（ラベル）より下に入れるヘルパー
+    function addRasterSourceAndLayer(id, sourceDef, opts = {}) {
+      try {
+        map.addSource(id, sourceDef);
+      } catch (e) {
+        console.warn('addSource failed:', e);
+        return false;
+      }
+      try {
+        const beforeId = OVERLAY_LAYER_IDS.find(lid => map.getLayer(lid));
+        map.addLayer({ id, type: 'raster', source: id }, beforeId);
+      } catch (e) {
+        console.warn('addLayer failed:', e);
+        return false;
+      }
+      map.setMaxZoom(opts.maxZoom ?? 20);
+      return true;
+    }
+
     // 既存レイヤ/ソースを除去
     function resetSource(id) {
       if (map.getLayer(id)) map.removeLayer(id);
@@ -175,18 +197,7 @@
       }
 
       whenLoaded(() => {
-        try {
-          map.addSource(id, sourceDef);
-        } catch (e) {
-          console.warn('addSource failed:', e);
-          return;
-        }
-        try {
-          map.addLayer({ id, type: 'raster', source: id });
-        } catch (e) {
-          console.warn('addLayer failed:', e);
-        }
-        map.setMaxZoom(opts.maxZoom ?? 20);
+        addRasterSourceAndLayer(id, sourceDef, opts);
       });
 
       // フィット（可能なら TileJSON の bounds/center）
@@ -201,13 +212,11 @@
       // キャッシュ向上: 事前に PMTiles インスタンスを登録
       protocol.add(new pmtiles.PMTiles(url));
       // pmtiles:// を URL として指定すると TileJSON が解決される
-      map.addSource(id, {
+      addRasterSourceAndLayer(id, {
         type: 'raster',
         url: `pmtiles://${url}`,
         tileSize: 512
-      });
-      map.addLayer({ id, type: 'raster', source: id });
-  map.setMaxZoom(opts.maxZoom ?? 20);
+      }, opts);
       // PMTiles メタからのフィットは簡易化のため省略（必要なら拡張可能）
     }
 
@@ -223,7 +232,9 @@
     const defaultPMTiles = 'https://tunnel.optgeo.org/abidjan-2019.pmtiles';
     const tilejsonUrl = params.get('tilejson') || defaultTileJSON;
     const pmtilesUrl = params.get('pmtiles');
-  const protomapsUrl = params.get('protomaps');
+    const rawProtomaps = params.get('protomaps');
+    const defaultProtomaps = 'https://tunnel.optgeo.org/martin/protomaps-basemap';
+    const protomapsUrl = (rawProtomaps === 'none') ? null : (rawProtomaps || defaultProtomaps);
 
     const tilejsonInput = document.getElementById('tilejsonInput');
     const pmtilesInput = document.getElementById('pmtilesInput');
@@ -278,7 +289,9 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const tj = await res.json();
 
-        if (map.getSource(sourceId)) map.removeSource(sourceId);
+  // 既存のレイヤを先に消す
+  OVERLAY_LAYER_IDS.forEach(lid => { if (map.getLayer(lid)) try{ map.removeLayer(lid); } catch{} });
+  if (map.getSource(sourceId)) map.removeSource(sourceId);
 
         const sourceDef = { type: 'vector', url: tilejsonUrl };
         if (typeof tj?.attribution === 'string' && tj.attribution.trim()) {
@@ -298,7 +311,7 @@
           const lyrPlaces = findLayerId(['place','places','label']);
           const lyrPoi    = findLayerId(['poi','pois','amenity']);
 
-          // 地名ラベル（低ズーム向け）
+          // 地名ラベル（低ズーム向け）: テキスト小さめ、出現ズーム+2
           if (lyrPlaces) {
             try {
               map.addLayer({
@@ -308,21 +321,22 @@
                 'source-layer': lyrPlaces,
                 layout: {
                   'text-field': ['coalesce', ['get','name:ja'], ['get','name:en'], ['get','name']],
-                  'text-size': ['interpolate', ['linear'], ['zoom'], 3, 10, 6, 12, 10, 14, 12, 16],
-                  'text-allow-overlap': false
+                  'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 8, 11, 12, 13, 14, 15],
+                  'text-allow-overlap': false,
+                  'visibility': 'visible'
                 },
                 paint: {
                   'text-color': '#ffffff',
                   'text-halo-color': 'rgba(0,0,0,0.85)',
                   'text-halo-width': 1.2
                 },
-                minzoom: 3,
-                maxzoom: 13
+                minzoom: 5,
+                maxzoom: 15
               });
             } catch (e) { console.warn('add place labels failed', e); }
           }
 
-          // POI ラベル（高ズーム向け）
+          // POI ラベル（高ズーム向け）: テキスト小さめ、出現ズーム+2
           if (lyrPoi) {
             try {
               map.addLayer({
@@ -332,15 +346,16 @@
                 'source-layer': lyrPoi,
                 layout: {
                   'text-field': ['coalesce', ['get','name:ja'], ['get','name:en'], ['get','name']],
-                  'text-size': ['interpolate', ['linear'], ['zoom'], 14, 11, 16, 13, 18, 15],
-                  'text-allow-overlap': false
+                  'text-size': ['interpolate', ['linear'], ['zoom'], 16, 10, 18, 12, 20, 14],
+                  'text-allow-overlap': false,
+                  'visibility': 'visible'
                 },
                 paint: {
                   'text-color': '#eeeeee',
                   'text-halo-color': 'rgba(0,0,0,0.9)',
                   'text-halo-width': 1.2
                 },
-                minzoom: 14
+                minzoom: 16
               });
             } catch (e) { console.warn('add poi labels failed', e); }
           }
