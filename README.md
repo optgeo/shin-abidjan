@@ -114,6 +114,40 @@ Commit these files (examples):
 
 If you need to share a generated PMTiles file for distribution, do so outside of this repository (for example via rsync or hosting) rather than committing the large binary into git.
 
+## Viewer (docs/index.html)
+
+静的な Web ビューアを `docs/index.html` に用意しています。MapLibre GL JS v5 と pmtiles.js を使い、以下をサポートします。
+
+- TileJSON 経由のラスタタイル表示（WebP 優先、非対応ブラウザは自動で PNG にフォールバック）
+- PMTiles の直接参照（`pmtiles://` プロトコル、Range 対応と CORS が必要）
+- Protomaps ベースマップからの最小限の注記オーバーレイ（地名ラベル＋POI）
+- 既存ズーム・中心位置のハッシュを尊重（URL の `#z/lat/lon` がある場合はオートフィットを抑止）
+- 画像と注記の安定したレイヤ順（イメージを下、注記を上）
+
+### 起動方法
+
+- GitHub Pages で `docs/` を公開している場合は、`https://<username>.github.io/<repo>/` で開けます。
+- ローカルで開く場合は、簡易な静的サーバ（例: `python -m http.server`）で `docs/` を配信してブラウザでアクセスしてください。
+
+### クエリパラメータ
+
+- `?tilejson=<URL>`: TileJSON の URL（既定: `https://tunnel.optgeo.org/martin/abidjan-2019`）
+- `?pmtiles=<URL>`: PMTiles ファイルの URL（例: `https://tunnel.optgeo.org/abidjan-2019.pmtiles`）
+  - 指定がある場合は TileJSON の上に上書き適用されます。
+- `?protomaps=<URL|none>`: Protomaps ベースマップ TileJSON の URL。`none` で注記オーバーレイを無効化。
+  - 既定: `https://tunnel.optgeo.org/martin/protomaps-basemap`
+
+注記オーバーレイのレイヤ:
+
+- `proto-place-labels`: 低ズーム向け地名ラベル（minzoom=5, maxzoom=15）
+- `proto-poi-labels`: 高ズーム向け POI（minzoom=14）
+
+備考:
+
+- TileJSON から `minzoom`/`maxzoom` をソースに反映するため、不要な z19/20 へのリクエストを抑止します。
+- WebP 非対応ブラウザでは `.webp` → `.png` に自動置換します（サーバ側で PNG が提供されている前提）。
+- フォントは MapLibre のデモフォントを使用しています。
+
 ## License
 
 The converted data follows the original CC BY-NC 4.0 license from the source material.
